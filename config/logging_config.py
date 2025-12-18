@@ -1,7 +1,7 @@
 import logging
 import logging.handlers
 import os
-from service_config import config
+from .service_config import config
 
 
 def setup_logging():

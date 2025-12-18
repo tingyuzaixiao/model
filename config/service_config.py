@@ -11,7 +11,9 @@ class ServiceConfig:
     workers: int = 1
 
     # 模型设置
-    model_name: str = "BAAI/bge-reranker-v2-m3"
+    # model_name两种写法都是对的
+    # model_name: str = "BAAI/bge-reranker-v2-m3"
+    model_name: str = "/home/zhangjiang/.cache/huggingface/hub/models--BAAI--bge-reranker-v2-m3/snapshots/953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
     max_length: int = 512
     batch_size: int = 32
     device: str = "cuda"
