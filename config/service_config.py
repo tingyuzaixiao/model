@@ -36,7 +36,7 @@ class ServiceConfig:
             self.use_fp16 = False
 
         # 从环境变量加载配置
-        # self._load_from_env()
+        self._load_from_env()
 
     def _load_from_env(self):
         """从环境变量加载配置"""
@@ -44,8 +44,6 @@ class ServiceConfig:
             self.host = os.getenv("RERANKER_HOST")
         if os.getenv("RERANKER_PORT"):
             self.port = int(os.getenv("RERANKER_PORT"))
-        if os.getenv("MODEL_NAME"):
-            self.model_name = os.getenv("MODEL_NAME")
         if os.getenv("LOG_LEVEL"):
             self.log_level = os.getenv("LOG_LEVEL")
         if os.getenv("LOG_FILE"):
