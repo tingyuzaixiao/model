@@ -44,6 +44,8 @@ class ServiceConfig:
             self.host = os.getenv("RERANKER_HOST")
         if os.getenv("RERANKER_PORT"):
             self.port = int(os.getenv("RERANKER_PORT"))
+        if os.getenv("MODEL_NAME"):
+            self.model_name = os.getenv("MODEL_NAME")
         if os.getenv("LOG_LEVEL"):
             self.log_level = os.getenv("LOG_LEVEL")
         if os.getenv("LOG_FILE"):
