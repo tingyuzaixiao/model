@@ -15,6 +15,8 @@ from server.schema.request import EmbeddingsRequest
 from server.schema.response import HealthResponse, ErrorResponse, EmbeddingResponse
 from server.tool.atomic_counter import AtomicCounter
 
+import numpy as np
+
 # 应用启动时间
 startup_time = time.time()
 
@@ -74,7 +76,7 @@ async def health_check(embeddings_obj: BGEM3 = Depends(get_embeddings)):
         raise HTTPException(status_code=500, detail="健康检查失败")
 
 
-@router.post("/embeddings", response_model=EmbeddingsRequest)
+@router.post("/embeddings", response_model=EmbeddingResponse)
 async def embeddings(
         request: EmbeddingsRequest,
         embeddings_obj: BGEM3 = Depends(get_embeddings)
@@ -91,12 +93,16 @@ async def embeddings(
         dict_obj = await loop.run_in_executor(thread_pool,
                                             model_inference,
                                             request.query, embeddings_obj)
-        logger.info("dense_vec type: ", type(dict_obj["dense_vecs"][0].tolist()))
-        logger.info("lexical_weights type: ", type(dict_obj["lexical_weights"][0]))
+        dense_vec = dict_obj["dense_vecs"][0].astype(np.float32).tolist()
+        lexical_weights = {
+            int(k): float(v)
+            for k, v in dict_obj["lexical_weights"][0].items()
+        }
+
         return EmbeddingResponse(
             success=True,
-            dense_vec=dict_obj["dense_vecs"][0].tolist(),
-            lexical_weights=dict_obj["lexical_weights"][0]
+            dense_vec=dense_vec,
+            lexical_weights=lexical_weights
         )
     except HTTPException:
         raise
@@ -158,28 +164,28 @@ def init_fastapi() -> FastAPI:
         allow_headers=["*"],
     )
 
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        """记录访问日志"""
-        start_time = time.time()
-
-        try:
-            response = await call_next(request)
-
-            process_time = (time.time() - start_time) * 1000
-            access_logger.info(
-                f"{request.client.host} - \"{request.method} {request.url.path}\" "
-                f"{response.status_code} - {process_time:.2f}ms"
-            )
-            return response
-        except Exception as e:
-            process_time = (time.time() - start_time) * 1000
-            logger.error(f"请求处理异常: {str(e)}", exc_info=True)
-            access_logger.error(
-                f"{request.client.host} - \"{request.method} {request.url.path}\" "
-                f"ERROR - {process_time:.2f}ms - {str(e)}"
-            )
-            raise
+    # @app.middleware("http")
+    # async def log_requests(request: Request, call_next):
+    #     """记录访问日志"""
+    #     start_time = time.time()
+    #
+    #     try:
+    #         response = await call_next(request)
+    #
+    #         process_time = (time.time() - start_time) * 1000
+    #         access_logger.info(
+    #             f"{request.client.host} - \"{request.method} {request.url.path}\" "
+    #             f"{response.status_code} - {process_time:.2f}ms"
+    #         )
+    #         return response
+    #     except Exception as e:
+    #         process_time = (time.time() - start_time) * 1000
+    #         logger.error(f"请求处理异常: {str(e)}", exc_info=True)
+    #         access_logger.error(
+    #             f"{request.client.host} - \"{request.method} {request.url.path}\" "
+    #             f"ERROR - {process_time:.2f}ms - {str(e)}"
+    #         )
+    #         raise
 
     # 全局异常处理
     @app.exception_handler(Exception)
