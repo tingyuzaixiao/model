@@ -1,4 +1,6 @@
+import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 import psutil
@@ -8,13 +10,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config.service_config import config
 from config.logging_config import logger, access_logger
-from server.model.bge_reranker import reranker_model, BGEReranker
-from server.schema.request import RerankRequest
-from server.schema.response import RerankResponse, HealthResponse, ErrorResponse
-
+from server.model.bge_m3 import BGEM3, embeddings_model
+from server.schema.request import EmbeddingsRequest
+from server.schema.response import HealthResponse, ErrorResponse, EmbeddingResponse
+from server.tool.atomic_counter import AtomicCounter
 
 # 应用启动时间
 startup_time = time.time()
+
+MAX_CONCURRENT = 16
+
+thread_pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT)
+
+counter = AtomicCounter(0)
 
 router = APIRouter(
     prefix="/api",
@@ -22,8 +30,11 @@ router = APIRouter(
 )
 
 # 依赖注入：获取模型实例
-def get_reranker() -> BGEReranker:
-    return reranker_model
+def get_embeddings() -> BGEM3:
+    return embeddings_model
+
+def model_inference(query: str, embeddings_obj: BGEM3) -> dict:
+    return embeddings_obj.embeddings(query=query)
 
 
 # API端点
@@ -32,13 +43,12 @@ def get_reranker() -> BGEReranker:
 async def root():
     """根端点"""
     return {
-        "message": "BGE-Reranker-v2-M3 服务运行中",
+        "message": "BGE-M3 服务运行中",
         "version": "1.0.0",
-        "docs": "/docs"
     }
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check(reranker: BGEReranker = Depends(get_reranker)):
+async def health_check(embeddings_obj: BGEM3 = Depends(get_embeddings)):
     """健康检查端点"""
     try:
         # 系统信息
@@ -52,9 +62,9 @@ async def health_check(reranker: BGEReranker = Depends(get_reranker)):
         }
 
         return HealthResponse(
-            status="healthy" if reranker.is_loaded else "unhealthy",
-            model_loaded=reranker.is_loaded,
-            model_info=reranker.get_model_info(),
+            status="healthy" if embeddings_obj.is_loaded else "unhealthy",
+            model_loaded=embeddings_obj.is_loaded,
+            model_info=embeddings_obj.get_model_info(),
             system_info=system_info,
             service_uptime=system_info["service_uptime"]
         )
@@ -64,59 +74,53 @@ async def health_check(reranker: BGEReranker = Depends(get_reranker)):
         raise HTTPException(status_code=500, detail="健康检查失败")
 
 
-@router.post("/rerank", response_model=RerankResponse)
-async def rerank_documents(
-        request: RerankRequest,
-        reranker: BGEReranker = Depends(get_reranker)
+@router.post("/embeddings", response_model=EmbeddingsRequest)
+async def embeddings(
+        request: EmbeddingsRequest,
+        embeddings_obj: BGEM3 = Depends(get_embeddings)
 ):
-    """重排序API端点"""
+    current_count = counter.increment()
     try:
-        if not reranker.is_loaded:
+        if current_count > MAX_CONCURRENT * 2:
+            raise HTTPException(status_code=503, detail=f"请求并发数过高：{current_count}")
+
+        if not embeddings_obj.is_loaded:
             raise HTTPException(status_code=503, detail="模型未加载，服务不可用")
 
-        # 参数验证
-        if request.top_k > len(request.documents):
-            request.top_k = len(request.documents)
-
-        # 执行重排序
-        ranked_documents, scores, metrics = reranker.rerank(
-            query=request.query,
-            documents=request.documents,
-            top_k=request.top_k,
-            batch_size=request.batch_size
-        )
-
-        return RerankResponse(
+        loop = asyncio.get_event_loop()
+        dict_obj = await loop.run_in_executor(thread_pool,
+                                            model_inference,
+                                            request.query, embeddings_obj)
+        return EmbeddingResponse(
             success=True,
-            ranked_documents=ranked_documents,
-            scores=scores,
-            processing_time=metrics["processing_time"],
-            metrics=metrics
+            dense_vec=dict_obj["dense_vecs"][0].tolist(),
+            lexical_weights=dict_obj["lexical_weights"][0]
         )
-
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"重排序处理异常: {str(e)}", exc_info=True)
+        logger.error(f"embeddings异常: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"内部服务器错误: {str(e)}")
+    finally:
+        counter.decrement()
 
 
 @router.get("/model/info")
-async def get_model_info(reranker: BGEReranker = Depends(get_reranker)):
+async def get_model_info(embeddings_obj: BGEM3 = Depends(get_embeddings)):
     """获取模型信息"""
-    return reranker.get_model_info()
+    return embeddings_obj.get_model_info()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动逻辑
-    logger.info("=== 启动重排序服务 ===")
+    logger.info("=== 启动embeddings服务 ===")
     logger.info(f"服务地址: http://{config.host}:{config.port}")
-    logger.info(f"模型名称: {config.model_name}")
+    logger.info(f"模型地址: {config.model_path}")
 
     # 加载模型
-    success = reranker_model.load_model()
+    success = embeddings_model.load_model()
     if not success:
         logger.error("模型加载失败，服务无法启动")
         raise RuntimeError("模型加载失败")
@@ -126,12 +130,17 @@ async def lifespan(app: FastAPI):
     yield  # 这里应用会运行
 
     # 关闭逻辑
-    logger.info("=== 关闭重排序服务 ===")
+    logger.info("=== 关闭embeddings服务 ===")
 
 def init_fastapi() -> FastAPI:
+    loop = asyncio.get_event_loop()
+    loop.set_default_executor(
+        ThreadPoolExecutor(max_workers=MAX_CONCURRENT + 2)  # +2 为日志/中间件留余量
+    )
+
     app = FastAPI(
-        title="BGE-Reranker-v2-M3 服务",
-        description="军队体检RAG项目重排序API",
+        title="BGE-M3 服务",
+        description="embeddings API",
         version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",

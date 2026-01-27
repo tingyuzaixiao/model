@@ -1,15 +1,6 @@
-from typing import List, Any, Dict, Optional
+from typing import Any, Dict
 
 from pydantic import BaseModel
-
-
-class RerankResponse(BaseModel):
-    success: bool
-    ranked_documents: List[str]
-    scores: List[float]
-    processing_time: float
-    metrics: Dict[str, Any]
-    error_message: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -19,6 +10,10 @@ class HealthResponse(BaseModel):
     system_info: Dict[str, Any]
     service_uptime: float
 
+class EmbeddingResponse(BaseModel):
+    success: bool
+    dense_vec: list
+    lexical_weights: dict
 
 class ErrorResponse(BaseModel):
     success: bool = False

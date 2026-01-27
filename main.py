@@ -9,6 +9,7 @@ if __name__ == "__main__":
         app,
         host=config.host,
         port=config.port,
+        loop="asyncio",
         workers=config.workers,
         log_config=None  # 使用自定义日志配置
     )
