@@ -91,6 +91,8 @@ async def embeddings(
         dict_obj = await loop.run_in_executor(thread_pool,
                                             model_inference,
                                             request.query, embeddings_obj)
+        logger.info("dense_vec type: ", type(dict_obj["dense_vecs"][0].tolist()))
+        logger.info("lexical_weights type: ", type(dict_obj["lexical_weights"][0]))
         return EmbeddingResponse(
             success=True,
             dense_vec=dict_obj["dense_vecs"][0].tolist(),
