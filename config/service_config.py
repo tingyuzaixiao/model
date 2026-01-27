@@ -17,7 +17,7 @@ class ServiceConfig:
 
     # 日志配置
     log_level: str = "INFO"
-    log_file: str = "/opt/embeddings-service/logs/embeddings_service.log"
+    log_file: str = "/home/zhangjiang/logs/embeddings/embeddings_service.log"
 
     def __post_init__(self):
         """初始化后处理"""
