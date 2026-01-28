@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
@@ -11,8 +11,8 @@ class HealthResponse(BaseModel):
     service_uptime: float
 
 class EmbeddingData(BaseModel):
-    dense_vec: list
-    lexical_weights: dict
+    dense_vec: List[float]
+    lexical_weights: Dict[int, float]
 
 class EmbeddingResponse(BaseModel):
     code: int
