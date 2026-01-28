@@ -100,7 +100,7 @@ async def embeddings(
         }
 
         return EmbeddingResponse(
-            success=True,
+            code=0,
             dense_vec=dense_vec,
             lexical_weights=lexical_weights
         )
@@ -196,7 +196,6 @@ def init_fastapi() -> FastAPI:
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
-                success=False,
                 error_message="内部服务器错误",
                 error_code="INTERNAL_ERROR"
             ).model_dump()

@@ -11,11 +11,10 @@ class HealthResponse(BaseModel):
     service_uptime: float
 
 class EmbeddingResponse(BaseModel):
-    success: bool
+    code: int
     dense_vec: list
     lexical_weights: dict
 
 class ErrorResponse(BaseModel):
-    success: bool = False
     error_message: str
     error_code: str
