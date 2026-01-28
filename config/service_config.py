@@ -9,7 +9,7 @@ class ServiceConfig:
     # 服务设置
     host: str = "0.0.0.0"
     port: int = 8010
-    workers: int = 1
+    workers: int = 4
 
     # 模型设置
     model_path: str = "/home/zhangjiang/bge-m3-model"
@@ -44,6 +44,8 @@ class ServiceConfig:
             self.model_path = os.getenv("EMBEDDINGS_MODEL_PATH")
         if os.getenv("EMBEDDINGS_DEVICES"):
             self.devices = os.getenv("EMBEDDINGS_DEVICES")
+        if os.getenv("EMBEDDINGS_WORKERS"):
+            self.workers = int(os.getenv("EMBEDDINGS_WORKERS"))
 
 # 全局配置实例
 config = ServiceConfig()

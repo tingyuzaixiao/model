@@ -20,7 +20,7 @@ import numpy as np
 # 应用启动时间
 startup_time = time.time()
 
-MAX_CONCURRENT = 16
+MAX_CONCURRENT = 8
 
 thread_pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT)
 
