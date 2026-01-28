@@ -13,7 +13,7 @@ def setup_logging():
 
     # 创建格式化器
     formatter = logging.Formatter(
-        '%(asctime)s | %(thread)d | %(levelname)s | [%(filename)s:%(lineno)d] | %(message)s'
+        '%(asctime)s | %(process)d | %(thread)d | %(levelname)s | [%(filename)s:%(lineno)d] | %(message)s'
     )
 
     # 获取根日志记录器
@@ -63,7 +63,7 @@ def setup_access_logging():
         encoding='utf-8'
     )
     access_handler.setFormatter(logging.Formatter(
-        '%(asctime)s | %(thread)d | %(levelname)s | [%(filename)s:%(lineno)d] | %(message)s'
+        '%(asctime)s | %(process)d | %(thread)d | %(levelname)s | [%(filename)s:%(lineno)d] | %(message)s'
     ))
 
     access_logger = logging.getLogger('access')
