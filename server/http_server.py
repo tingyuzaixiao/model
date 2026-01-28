@@ -12,7 +12,7 @@ from config.service_config import config
 from config.logging_config import logger, access_logger
 from server.model.bge_m3 import BGEM3, embeddings_model
 from server.schema.request import EmbeddingsRequest
-from server.schema.response import HealthResponse, ErrorResponse, EmbeddingResponse
+from server.schema.response import HealthResponse, ErrorResponse, EmbeddingResponse, EmbeddingData
 from server.tool.atomic_counter import AtomicCounter
 
 import numpy as np
@@ -98,11 +98,13 @@ async def embeddings(
             int(k): float(v)
             for k, v in dict_obj["lexical_weights"][0].items()
         }
+        embedding_data = EmbeddingData(dense_vec=dense_vec,
+            lexical_weights=lexical_weights)
 
         return EmbeddingResponse(
             code=0,
-            dense_vec=dense_vec,
-            lexical_weights=lexical_weights
+            msg='',
+            data=embedding_data
         )
     except HTTPException:
         raise

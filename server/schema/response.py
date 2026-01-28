@@ -10,10 +10,14 @@ class HealthResponse(BaseModel):
     system_info: Dict[str, Any]
     service_uptime: float
 
-class EmbeddingResponse(BaseModel):
-    code: int
+class EmbeddingData(BaseModel):
     dense_vec: list
     lexical_weights: dict
+
+class EmbeddingResponse(BaseModel):
+    code: int
+    msg: str
+    data: EmbeddingData
 
 class ErrorResponse(BaseModel):
     error_message: str
